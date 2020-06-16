@@ -9,12 +9,14 @@
 #property strict
 
 #include <Zmq/Zmq.mqh>
+#include "Commands.mqh"
 
 extern string ClientID = "MT4_SERVER";
 extern string host = "*";
 extern string protocol = "tcp";
 extern int REP_PORT = 5555;
 extern int PUSH_PORT = 5556;
+extern int TIMER = 1
 
 // Create ZMQ Context
 Context context(ClientID); 
@@ -27,7 +29,6 @@ Socket pushSocket(context, ZMQ_PUSH);
 
 // Message
 ZmqMsg request;
-
 uchar data[];
 
 
@@ -36,9 +37,13 @@ uchar data[];
 //+------------------------------------------------------------------+
 int OnInit()
 {
-  
+   // System check.
+   if (!run_tests()) {
+      return(INIT_FAILED);
+   }
+
    // Le timer est de 1 secondes. 
-   EventSetTimer(1);
+   EventSetTimer(TIMER);
    
    // Binding RepSocket
    Print("[REP] Binding MT4 Server to Socket on port " + IntegerToString(REP_PORT)+ "...");
@@ -48,17 +53,11 @@ int OnInit()
    Print("[PUSH] Binding MT4 Server to Socket on port " + IntegerToString(PUSH_PORT) + "...");
    pushSocket.bind(StringFormat("%s://%s:%d", protocol, host, PUSH_PORT));
    
-   // Test d'un échange
-   Print("[REP] En attente d'un échange...");
-   repSocket.recv(request);
-   repSocket.send("Ack");
-   Print("[REP] Echange effectué avec succes");
-   
    // Durée maximal en ms pendant laquelle le thread tentera d'envoyer des messages
    repSocket.setLinger(5000);
    
    // Nombre de messages en mémoire tampon (file d'attente) avant de bloquer le socket.
-   repSocket.setSendHighWaterMark(20);
+   repSocket.setSendHighWaterMark(10);
    
    return(INIT_SUCCEEDED);
 }
@@ -69,7 +68,7 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
-   // destroy timer
+   // On détruit le timer
    EventKillTimer();
    
    Print("[REP] Unbinding MT4 Server from Socket on Port " + IntegerToString(REP_PORT) + "...");
@@ -84,7 +83,8 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTimer()
 {
-   receive_request(true);
+   // receive_request(true);
+   ping_client();
 }
 
 
@@ -182,5 +182,10 @@ void informPullClient(Socket& puSocket, string message) {
    
    puSocket.send(pushReply, true); // NON-BLOCKING
    // pushSocket.send(pushReply, false); // BLOCKING
+
+}
+
+
+bool run_tests() {
 
 }
