@@ -116,7 +116,7 @@ ZmqMsg processRequest(ZmqMsg &request) {
       parseZmqMessage(dataStr, components);
       
       // Interpret data 
-      InterpretZmqMessage(pushSocket, components);
+      //InterpretZmqMessage(pushSocket, components);
       
       // Construct response
       ZmqMsg ret(StringFormat("[SERVER] Processing: %s", dataStr));
@@ -139,6 +139,7 @@ ZmqMsg processRequest(ZmqMsg &request) {
 void InterpretZmqMessage(Socket &pSocket, string& compArray[]) {
 
    
+   
 
 }
 
@@ -155,7 +156,7 @@ void parseZmqMessage(string& message, string& retArray[]) {
    
    for (int i = 0; i < splits; i++) {
    
-      Print(i + ")" + retArray[i]);
+      Print(" " + i + ")" + retArray[i]);
    
    }
 
