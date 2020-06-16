@@ -9,7 +9,7 @@
 #property strict
 
 #include <Zmq/Zmq.mqh>
-#include "Commands.mqh"
+#include "Mq4Commands.mqh"
 
 extern string ClientID = "MT4_SERVER";
 extern string host = "*";
@@ -29,19 +29,13 @@ Socket pushSocket(context, ZMQ_PUSH);
 
 // Message
 ZmqMsg request;
-uchar data[];
-
+char data[];
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   // System check.
-   if (!run_tests()) {
-      return(INIT_FAILED);
-   }
-
    // Le timer est de 1 secondes. 
    EventSetTimer(TIMER);
    
@@ -62,7 +56,6 @@ int OnInit()
    return(INIT_SUCCEEDED);
 }
 
-
 //+------------------------------------------------------------------+
 //| Expert deinitialization function                                 |
 //+------------------------------------------------------------------+
@@ -77,115 +70,112 @@ void OnDeinit(const int reason)
    Print("[PUSH] Unbinding MT4 Server from Socket on Port " + IntegerToString(PUSH_PORT) + "...");
    pushSocket.unbind(StringFormat("%s://%s:%d", protocol, host, PUSH_PORT));
 }
-  
+
 //+------------------------------------------------------------------+
 //| Timer function                                                   |
 //+------------------------------------------------------------------+
 void OnTimer()
 {
-   // receive_request(true);
-   ping_client();
-}
+   repSocket.recv(request, true);            // Get client's request, but don't wait.
+   ZmqMsg reply = MessageHandler(request);   // Process.
+   repSocket.send(reply);                    // Send response to the client.
 
+   SendUpdateMessage(pushSocket);            // Send periodical updates to connected sockets.
+}
 
 //+------------------------------------------------------------------+
 //| Other functions                                                  |
 //+------------------------------------------------------------------+
 
-void receive_request(bool nowait)
-{
-   repSocket.recv(request, nowait);
-   ZmqMsg retour = processRequest(request);
-   repSocket.send(retour);
-}
-
-ZmqMsg processRequest(ZmqMsg &request) {
-
+/* Traitement de la requête. */
+ZmqMsg MessageHandler(ZmqMsg &request) {
+    
+   // Le message qui va être renvoyé
    ZmqMsg reply;
-   
+
+   // Le message pour plus tard
    string components[];
-   
+
    if (request.size() > 0) {
-   
-      // Get data from request
+
+      // On recupere les données de la requête
       ArrayResize(data, request.size());
       request.getData(data);
-      string dataStr = CharArrayToString(data);
-      
-      // Process data 
-      parseZmqMessage(dataStr, components);
-      
-      // Interpret data 
-      //InterpretZmqMessage(pushSocket, components);
-      
-      // Construct response
-      ZmqMsg ret(StringFormat("[SERVER] Processing: %s", dataStr));
-      reply = ret;   
-   
+      string data_str = CharArrayToString(data);
+
+      // On analyse le message
+      ParseZmqMessage(data_str, components);
+
+      // On l'interprete
+      InterpretZmqMessage(pushSocket, components);
+
+      // On construit la réponse
+      ZmqMsg ret(StringFormat("[SERVER] Processing: %s", data_str));
+      reply = ret;
+
    } else {
-   
-      // No data received
+      // On a reçu aucune donnée
    }
-   
+
    return reply;
-
 }
 
-
-
-
-
-//--- Interpret ZMQ message and perform actions
-void InterpretZmqMessage(Socket &pSocket, string& compArray[]) {
-
-   
-   
-
-}
-
-
-
-//--- Parse Zmq Message
-void parseZmqMessage(string& message, string& retArray[]) {
-
+/* Analyse le message. */
+void ParseZmqMessage(string &message, string &retArray[]) {
    Print("Parsing: " + message);
+   
    string sep = "|";
-   ushort u_sep = StringGetCharacter(sep, 0);
+   ushort u_sep = StringGetCharacter(sep,0);
    
    int splits = StringSplit(message, u_sep, retArray);
    
-   for (int i = 0; i < splits; i++) {
+   for(int i = 0; i < splits; i++) {
+      Print("(" + i + ") " + retArray[i]);
+   }
+}
+
+/* Interprete le message. */
+void InterpretZmqMessage(Socket &pSocket, string& compArray[]) {
+
+   Print("ZMQ: Interpreting message...");
+
+   int action = 0;
    
-      Print(" " + i + ")" + retArray[i]);
-   
+   if (compArray[0] == "TRADE" && compArray[1] == "OPEN") {
+      action = 1;
+   } else if (compArray[0] == "TRADE" && compArray[1] == "CLOSE") {
+      action = 2;
+   } else if (compArray[0] == "RATES") {
+      action = 3;
+   } else if (compArray[0] == "DATA") {
+      action = 4;
    }
 
+   switch (action) {
+
+      case 1:
+         Print("OPEN A TRADE");
+         break;
+
+      case 2: 
+         Print("CLOSE A TRADE");
+         break;
+      
+      case 3:
+         Print("RATES");
+         break;
+
+      case 4: 
+         Print("DATA");
+         break;
+
+      default: 
+         break;
+
+   }
 }
 
+/* Envoie d'update au client. */
+void SendUpdateMessage(Socket &pSocket) {
 
-//--- Generate string for Bid/Ask by symbol
-string getBidAndAsk(string symbol) {
-
-   double bid = MarketInfo(symbol, MODE_BID);
-   double ask = MarketInfo(symbol, MODE_ASK);
-
-   return StringFormat("%f|%f", bid, ask);
-
-}
-
-
-//--- Inform Client
-void informPullClient(Socket& puSocket, string message) {
-
-   ZmqMsg pushReply(StringFormat("%s", message));
-   // pushSocket.send(pushReply, true, false);
-   
-   puSocket.send(pushReply, true); // NON-BLOCKING
-   // pushSocket.send(pushReply, false); // BLOCKING
-
-}
-
-
-bool run_tests() {
-   return true;
 }
