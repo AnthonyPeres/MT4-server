@@ -16,7 +16,7 @@ extern string host = "*";
 extern string protocol = "tcp";
 extern int REP_PORT = 5555;
 extern int PUSH_PORT = 5556;
-extern int TIMER = 1
+extern int TIMER = 1;
 
 // Create ZMQ Context
 Context context(ClientID); 
@@ -187,5 +187,5 @@ void informPullClient(Socket& puSocket, string message) {
 
 
 bool run_tests() {
-
+   return true;
 }
