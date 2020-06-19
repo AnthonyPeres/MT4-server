@@ -9,7 +9,7 @@
 #property strict
 
 #include <Zmq/Zmq.mqh>
-#include "Mq4Commands.mqh"
+#include "Functions.mqh"
 
 extern string ClientID = "MT4_SERVER";
 extern string host = "*";
@@ -76,11 +76,8 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTimer()
 {
-   repSocket.recv(request, true);            // Get client's request, but don't wait.
-   ZmqMsg reply = MessageHandler(request);   // Process.
-   repSocket.send(reply);                    // Send response to the client.
-
-   SendUpdateMessage(pushSocket);            // Send periodical updates to connected sockets.
+   repSocket.recv(request, true);       // Get client's request, but don't wait.
+   MessageHandler(request);             // Process.
 }
 
 //+------------------------------------------------------------------+
@@ -88,13 +85,13 @@ void OnTimer()
 //+------------------------------------------------------------------+
 
 /* Traitement de la requête. */
-ZmqMsg MessageHandler(ZmqMsg &request) {
+void MessageHandler(ZmqMsg &request) {
     
    // Le message qui va être renvoyé
    ZmqMsg reply;
 
    // Le message pour plus tard
-   string components[];
+   string message_decoupe[];
 
    if (request.size() > 0) {
 
@@ -104,25 +101,23 @@ ZmqMsg MessageHandler(ZmqMsg &request) {
       string data_str = CharArrayToString(data);
 
       // On analyse le message
-      ParseZmqMessage(data_str, components);
+      ParseZmqMessage(data_str, message_decoupe);
 
       // On l'interprete
-      InterpretZmqMessage(pushSocket, components);
+      InterpretZmqMessage(pushSocket, message_decoupe);
 
       // On construit la réponse
-      ZmqMsg ret(StringFormat("[SERVER] Processing: %s", data_str));
-      reply = ret;
+      ZmqMsg reply(StringFormat("[SERVER] Processing: %s", data_str));
+      repSocket.send(reply);
 
    } else {
       // On a reçu aucune donnée
    }
-
-   return reply;
 }
 
 /* Analyse le message. */
 void ParseZmqMessage(string &message, string &retArray[]) {
-   Print("Parsing: " + message);
+   Print("Analyse: " + message);
    
    string sep = "|";
    ushort u_sep = StringGetCharacter(sep,0);
@@ -141,41 +136,82 @@ void InterpretZmqMessage(Socket &pSocket, string& compArray[]) {
 
    int action = 0;
    
-   if (compArray[0] == "TRADE" && compArray[1] == "OPEN") {
+   if (compArray[1] == "PING") {
       action = 1;
-   } else if (compArray[0] == "TRADE" && compArray[1] == "CLOSE") {
+   } else if (compArray[1] == "ORDER_OPEN") {
       action = 2;
-   } else if (compArray[0] == "RATES") {
+   } else if (compArray[1] == "ORDER_MODIFY") {
       action = 3;
-   } else if (compArray[0] == "DATA") {
+   } else if (compArray[1] == "PENDING_ORDER_DELETE") {
       action = 4;
-   }
+   } else if (compArray[1] == "PENDING_ORDER_DELETE_ALL") {
+      action = 5;
+   } else if (compArray[1] == "MARKET_ORDER_CLOSE") {
+      action = 6;
+   } else if (compArray[1] == "MARKET_ORDER_CLOSE_ALL") {
+      action = 7;
+   } else if (compArray[1] == "ORDERS") {
+      action = 8;
+   } else if (compArray[1] == "RATES") {
+      action = 9;
+   } else if (compArray[1] == "ACCOUNT") {
+      action = 10;
+   } 
 
    switch (action) {
-
       case 1:
-         Print("OPEN A TRADE");
+         ping();
          break;
 
       case 2: 
-         Print("CLOSE A TRADE");
+         if (compArray[3] == "OP_BUY") {
+            order_open("", "", 0.0, 0.0, 0, 0.0, 0.0, "", 0);
+         } else if (compArray[3] == "OP_SELL") {
+            order_open("", "", 0.0, 0.0, 0, 0.0, 0.0, "", 0);
+         } else if (compArray[3] == "OP_BUYLIMIT") {
+            order_open("", "", 0.0, 0.0, 0, 0.0, 0.0, "", 0);
+         } else if (compArray[3] == "OP_SELLLIMIT") {
+            order_open("", "", 0.0, 0.0, 0, 0.0, 0.0, "", 0);
+         } else if (compArray[3] == "OP_BUYSTOP") {
+            order_open("", "", 0.0, 0.0, 0, 0.0, 0.0, "", 0);
+         } else if (compArray[3] == "OP_SELLSTOP") {
+            order_open("", "", 0.0, 0.0, 0, 0.0, 0.0, "", 0);
+         } 
          break;
       
       case 3:
-         Print("RATES");
+         order_modify(0, 0.0, 0.0, 0.0);
          break;
 
       case 4: 
-         Print("DATA");
+         pending_order_delete(0);
+         break;
+
+      case 5: 
+         pending_order_delete_all("");
+         break;
+
+      case 6: 
+         market_order_close(0);
+         break;
+
+      case 7: 
+         market_order_close_all("");
+         break;
+
+      case 8: 
+         orders();
+         break;
+
+      case 9: 
+         rates("");
+         break;
+
+      case 10: 
+         account();
          break;
 
       default: 
          break;
-
    }
-}
-
-/* Envoie d'update au client. */
-void SendUpdateMessage(Socket &pSocket) {
-
 }

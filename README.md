@@ -1,445 +1,523 @@
 # MT4-server
 
-This project create a request / reply communication between MT4 and our Python client.
-The communication is currently exchanged with [ZeroMQ]
+Couche de communication demande / réponse entre MetaTrader 4 et l’application développée en Python.
+La communication est effectuée grâce à ZeroMQ (http://zeromq.org/) 
+A l’avenir, elle pourrait être étendu pour prendre en charge plus de protocoles.
 
-## Usage
+Un analyseur de message est implémenté pour facilité la tâche d’interprétation des messages.
+Les messages analysés créent des liaisons pour les informations de compte, les commandes de comptes et la gestion des commandes.
 
-1. Add MT4-Server Expert Advisor to your chart.
-2. Enable "Allow live trading" and "Allow DDL imports" in Common tab.
 
-## Two sockets
+## Bibliothèques
 
-There are two sockets : 
-1. REP Server : Accepting the messages.
-2. PUSH Server : Send the messages, as well as push data update events (symbol rates, account info, order change...) to the client.
+[mql-zmq] (https://github.com/dingmaotu/mql-zmq) 
 
-## Protocol 
+## Installation 
 
-The protocol assumes that request / reply messages are strings separated with pipe `|` character.
+Installer la bibliothèque [mql-zmq].
+Copier ce programme dans le dossier des Experts Advisors de MetaTrader 4 et le compiler dans MetaEditor.
+Activer le Trading Automatique dans l’application MetaTrader 4.
 
-## Request
+## Utilisation 
 
-First value from request message is always an id of the request.
-Second value is the request type.
+Ajouter l’EA Server à votre graphique.
+Activer « Autoriser le trading en direct » et « Autoriser les importations de DDL ».
+Configurer ensuite le serveur dans l’onglet Entrées selon vos besoins.
 
-Request types are : 
+## Deux serveurs
 
-| REQUEST_TYPE                       | Description    |
-| :--------------------------------- | :------------- |
-| `REQUEST_PING`                     | Ping MT4 client. |
-| `REQUEST_TRADE_OPEN`               | Create new order. |
-| `REQUEST_TRADE_MODIFY`             | Modify placed order. |
-| `REQUEST_TRADE_DELETE`             | Delete pending order. |
-| `REQUEST_DELETE_ALL_PENDING_ORDERS`| Delete all pending orders. |
-| `REQUEST_CLOSE_MARKET_ORDER`       | Close open market orders. |
-| `REQUEST_CLOSE_ALL_MARKET_ORDERS`  | Close all open market orders. |
-| `REQUEST_RATES`                    | Get current rate for the symbol. |
-| `REQUEST_ACCOUNT`                  | Get account info. |
-| `REQUEST_ORDERS`                   | Get account orders. |
+Deux serveurs démarrent avec l'EA.
+1. Le premier est le serveur REP qui sert à accepter les messages.
+2. Le second est le serveur PUSH qui sert a envoyer les messages ainsi que les événements de mise à jour des données (taux, informations de compte, changement de commandes) au client.
 
-#### Example requests 
+Le second serveur pourra envoyer des données sous format json au client (données, indicateurs...).
 
-Modify an order : 
-    1|REQUEST_TRADE_MODIFY|140602286|108.252|107.525|109.102
+## Protocole
 
-Delete pending order : 
-    2|REQUEST_TRADE_DELETE|140602286
+Le protocole utilisé est le tcp. 
+Les messages de demande / réponse sont des chaînes de caractères séparées par le caractère `|` (string split).
 
-Get current rates for USDJPY : 
-    3|REQUEST_RATES|USDJPY
+## Déroulement du programme
 
-## Response
+### Initialisation
 
-First value from response message is always an id of the request.
+Le serveur passe tout d'abord par une phase d'initialisation. Durant celle-ci, il va bind le client
 
-Second value is the response status.
+### Boucle principale
 
-Response statuses are:
+Le serveur va recevoir des demandes, sans pour autant les attendre. 
+Lorsqu'il reçoit une demande, il va automatiquement la transformer en chaîne de caractère puis va la découper de sorte à pouvoir identifier chaque partie de cette demande.
 
-| RESPONSE_STATUS   | Description    |
-| :---------------- | :------------- |
-| `RESPONSE_OK`     | Response is successful. |
-| `RESPONSE_FAILED` | Response has failed. |
+### Déinitialisation
 
+Le serveur s'éteint en passant par une phase de déinitialisation. Durant celle-ci, il va unbind le client
 
-### Success response
+## Demandes
 
-In case of success, rest of the values are response values.
+Voici la forme générale d'une demande : `ID|TYPE DE DEMANDE|ARGUMENTS`
 
-##### Example response
+Les types de demandes sont : 
 
-2|RESPONSE_OK|108.926000|108.947000|USDJPY
+| TYPE DE DEMANDE                            | Description                                                    |
+| : -----------------------------------------  | : ------------------------------------------------ |
+| `PING`                                                    | Ping le client                                                 |
+| `ORDER_OPEN`                                        | Créer un nouvel ordre                                  |
+| `ORDER_MODIFY`                                    | Modifier un ordre                                          |
+| `PENDING_ORDER_DELETE`                   | Supprimer un ordre en attente                     |
+| `PENDING_ORDER_DELETE_ALL`           | Supprimer tout les ordres en attente           |
+| `MARKET_ORDER_CLOSE`                        | Cloturer un ordre ouvert                              |
+| `MARKET_ORDER_CLOSE_ALL`                | Cloturer tout les ordres ouverts                  |
+| `ORDERS`                                                 | Obtenir tout les ordres du compte              |
+| `RATES`                                                   | Obtenir le taux actuel du symbole               |
+| `ACCOUNT`                                               | Obtenir les informations du compte            |
 
-First value `2` is request id. Second value `RESPONSE_OK` tells us that the response from the server is successful and rest of the message `108.926000|108.947000|USDJPY` can be parsed according to request type.
+### Trade opération
 
-### Failure response
+Pour ouvrir un ordre de marché ou placer des demandes d'ordres en attente.
+Voir : (https://docs.mql4.com/constants/tradingconstants/orderproperties)
 
-In case of failure, third value indicates [error code](https://book.mql4.com/appendix/errors). No more values are returned.
+Les opérations sont : 
 
-###### Example
+| OPERATION_TYPE | Description                                                          |
+| : --------------------  | : ---------------------------------------------------- |
+| `OP_BUY`                  | Opération d'achat.                                              |
+| `OP_SELL`                | Opération de vente.                                            |
+| `OP_BUYLIMIT`        | Limite d'achat en attente de commande.           |
+| `OP_SELLLIMIT`      | Limite de vente en attente de commande.         |
+| `OP_BUYSTOP`          | Acheter arrêter la commande en attente.           |
+| `OP_SELLSTOP`        | Vendre un ordre en attente d'arrêt.                    |
 
-2|RESPONSE_FAILED|134
+### Exemples de demandes
 
-First value `2` is request id. Second value `RESPONSE_FAILED` indicates that the response from the server has failed and the third value is error code of `134` which means "[Free margin is insufficient](https://book.mql4.com/appendix/errors)".
-
-### Handling request ids
-
-Request id should be unique with every request (e.g. incremented int).
-
-But there are cases in which you might want to use static values, like "ACCOUNT" - which could periodically send account info to the client so it can have up to date data about the account.
-
-## Trade operations
-
-[Trade operations](https://docs.mql4.com/constants/tradingconstants/orderproperties) for opening market order and placing pending order requests.
-
-Operations are:
-
-| OPERATION_TYPE  | ID  | Description    |
-| :-------------- | :-- | :------------- |
-| `OP_BUY`        | `0` | Buy operation. |
-| `OP_SELL`       | `1` | Sell operation. |
-| `OP_BUYLIMIT `  | `2` | Buy limit pending order. |
-| `OP_SELLLIMIT ` | `3` | Sell limit pending order. |
-| `OP_BUYSTOP `   | `4` | Buy stop pending order. |
-| `OP_SELLSTOP `  | `5` | Sell stop pending order. |
-
-## Unit types
-
-Unit types for order volume management requests.
-
-Unit types are:
-
-| UNIT_TYPE        | ID  | Description    |
-| :--------------- | :-- | :------------- |
-| `UNIT_CONTRACTS` | `0` | Use contracts volume unit. |
-| `UNIT_CURRENCY`  | `1` | Use currency volume unit. |
-
-For `0` `UNIT_CONTRACTS` no additional calculations are performed, so the volume is unchanged.
-
-For `1` `UNIT_CURRENCY` the volume specified for the trade is divided by the result price.
-
-##### Example
-
-Let's assume that we place two orders for `USDJPY` with volume `10` price `110` and two different unit types of `0` and `1`.
-
-In case of order with unit `0`, then the volume will stay at `10`.
-
-In case of order with unit `1`, then the volume of `10` will be divided by the price `110`, resulting with the final volume of ~`0.0909`.
-
-## Price modificators
-
-Price modificator are used to undercut or overcut the price value.
-
-Price modificators are:
-
-| MODIFICATOR_TYPE | Description | Example |
-| :--------------- | :------------- | :------------- |
-| `-`              | Undercut market price by specified value. | `-5` |
-| `+`              | Overcut market price by specified value. | `+10` |
-| `%`              | Undercut/overcut market price by specified percentage. | `-15%`, `+20%` |
-
-If modificator wasn't found (it's always first character in `BASE_PRICE`/`BASE_STOPLOSS`/`BASE_TAKEPROFIT` value), then it's treated as literal value.
-
-##### Examples
-
-Let's assume that the market price is `200` (it's irrelevant if it's bid or ask).
-
-In case of modificator `-5`, the result price will be `195`.
-
-In case of modificator `+10`, the result price will be `210`.
-
-In case of modificator `-15%`, the result price will be `170`.
-
-In case of modificator `+20%`, the result price will be `240`.
-
-In case of literal value `250`, the result price will be `250`.
-
-## API
-
-All listed request values are required.
-
-### [REQUEST\_PING [1]](#request)
-
-Ping MetaTrader 4 Client.
-
-#### Request values
-
-\<none\>
-
-###### Example
+Modifier une commande : 
 
 ```
-102|1
+1|PENDING_ORDER_MODIFY|143928208|103,483|292,228|393,292
 ```
 
-#### Response values
-
-`TS` current MT4 client timestamp in seconds.
-
-###### Example
+Supprimer la commande en attente : 
 
 ```
-102|0|1529834816
+1|PENDING_ORDER_DELETE|13382972
 ```
 
-### [REQUEST\_TRADE\_OPEN [11]](#request)
-
-Open an order.
-
-Key function from MT4 client used for this request is [OrderSend](https://docs.mql4.com/trading/ordersend).
-
-#### Request values
-
-`SYMBOL` (string) symbol for trading.  
-`OPERATION` (int) [operation type](#trade-operations).   
-`VOLUME` (double | string) trade volume.   
-`BASE_PRICE` (double) literal value or [modificator](#price-modificators) for order price.  
-`SLIPPAGE` (int) maximum price slippage for buy or sell orders.  
-`BASE_STOPLOSS` (double | string) literal value or [modificator](#price-modificators) for stop loss level.  
-`BASE_TAKEPROFIT` (double | string) literal value or [modificator](#price-modificators) for take profit level.  
-`COMMENT` (string) order comment text. Limit is 27 characters. Do not use pipe `|`. Can be empty.  
-`MAGIC_NUMBER` (int) order magic number. May be used as user defined identifier.  
-`UNIT` (int) [unit type](#unit-types).
-
-###### Example
+Obtenir les taux actuels pour USDJPY : 
 
 ```
-236|11|USDJPY|2|1|108.848|0|0|0|comment message goes here|123|0
+3|RATES|USDJPY
 ```
 
-#### Response values
+### Gestion des id de demande
 
-`TICKET` order ticket received from trade server.
+L'identifiant de la demande doit être unique avec chaque demande (par exemple, incrémenté int).
 
-###### Example
+Mais dans certains cas, vous souhaiterez peut-être utiliser des valeurs statiques, comme "COMPTE" - qui pourraient envoyer périodiquement des informations de compte au client afin qu'il puisse disposer de données à jour sur le compte.
 
-```
-236|0|140602286
-```
+## Réponses
 
-### [REQUEST\_TRADE\_MODIFY [12]](#request)
+Voici la forme d'une réponse : `ID|ÉTAT DE LA RÉPONSE`
 
-Modify an order.
+L'id étant l'id de la demande correspondante.
+Les états de réponse sont : 
 
-Key function from MT4 client used for this request is [OrderModify](https://docs.mql4.com/trading/ordermodify).
+| ÉTAT DE RÉPONSE    | Description                     |
+| : ----------------------- | : -------------------------- |
+| `REPLY_OK`                 | La réponse est réussie.  |
+| `REPLY_FAILED`         | La réponse a échoué.    |
 
-#### Request values
+### Réponse réussie
 
-`TICKET` (int) order ticket.  
-`BASE_PRICE` (double | string) literal value or [modificator](#price-modificators) for order price.  
-`BASE_STOPLOSS` (double | string) literal value or [modificator](#price-modificators) for stop loss level.  
-`BASE_TAKEPROFIT` (double | string) literal value or [modificator](#price-modificators) for take profit level.
+En cas de succès, les autres valeurs sont des valeurs de réponse.
 
-###### Example
-
-```
-312|12|140602286|108.252|107.525|109.102
-```
-
-#### Response values
-
-`TICKET` order ticket.
-
-###### Example
+##### Exemple de réponse réussie
 
 ```
-312|0|140602286
+2|REPLY_OK|109,3939|393,3938|USDJPY
 ```
+2 est l'id de la demande
+REPONSE|OK indique que la réponse du serveur a réussi et que le reste du message peut être analysé en fonction du type de la demande
 
-### [REQUEST\_TRADE\_DELETE [13]](#request)
+### Réponse échec
 
-Delete pending order.
+En cas d'échec, la troisième valeur indique le code d'erreur. Aucune autre valeur n'est renvoyée.
 
-Key function from MT4 client used for this request is [OrderDelete](https://docs.mql4.com/trading/orderdelete).
-
-#### Request values
-
-`TICKET` (int) pending order ticket.
-
-###### Example
+#### Exemple de réponse échec
 
 ```
-318|13|140602286
+2|REPLY_FAILED|134
 ```
+2 est l'id de la demande
+REPONSE|FAILED indique que la réponse du serveur a échoué et la troisième valeur est le code d'erreur de «134» qui signifie «La marge libre est insuffisante" 
 
-#### Response values
+## Les demandes
 
-`TICKET` order ticket.
+------------------------------------------------------------------------------------------------------------------------------------------
+### PING
 
-###### Example
+Ping le client.
 
-```
-318|0|140602286
-```
+#### Paramètres de la demande
 
-### [REQUEST\_DELETE\_ALL\_PENDING\_ORDERS [21]](#request)
+Aucun.
 
-Delete all pending orders.
-
-#### Request values
-
-`SYMBOL` (string) symbol for which pending orders should be deleted.
-
-###### Example
+#### Exemple de demande
 
 ```
-345|21|USDJPY
+100|PING
 ```
 
-#### Response values
+#### Valeur de réponse
 
-`DELETED_COUNT` number of deleted pending orders.
+Horodatage actuel du client MT4 en secondes
 
-###### Example
-
-```
-345|0|2
-```
-
-### [REQUEST\_CLOSE\_MARKET\_ORDER [22]](#request)
-
-Close market order.
-
-Key function from MT4 client used for this request is [OrderClose](https://docs.mql4.com/trading/orderclose).
-
-#### Request values
-
-`TICKET` (int) market order ticket.
-
-###### Example
+#### Exemple de réponse
 
 ```
-380|22|140612332
+100|REPLY_OK|1529834816
 ```
 
-#### Response values
+------------------------------------------------------------------------------------------------------------------------------------------
+### ORDER_OPEN
 
-`TICKET` order ticket.
+Créer un nouvel ordre, direct ou en attente. 
 
-###### Example
+#### Paramètres de la demande
 
-```
-380|0|140612332
-```
-
-### [REQUEST\_CLOSE\_ALL\_MARKET\_ORDERS [23]](#request)
-
-Close all market orders.
-
-#### Request values
-
-`SYMBOL` (string) symbol for which market orders should be closed.
-
-###### Example
+`SYMBOL`                String                           Symbole à trader.
+`CMD`                      String                           Opération commerciale
+`VOLUME`                Double | Chaine           Volume d'échange.
+`PRICE`                  Double                         Valeur littérale ou modificateur (# modificateurs de prix) pour le prix de la commande.
+`SLIPPAGE`            Int                                Glissement de prix maximum pour les commandes d'achat ou de vente.
+`STOPLOSS`            Double | Chaîne           Valeur littérale ou modificateur (# prix-modificateurs) pour le niveau de stop loss.
+`TAKEPROFIT`        Double | Chaîne           Valeur littérale ou modificateur (# prix-modificateurs) pour le niveau de take profit.
+`COMMENT`              String                           La limite est de 27 caractères. N'utilisez pas le tuyau «|». Peut être vide : Commentaire.
+`MAGIC_NUMBER`    Int                                Commande le nombre magique. Peut être utilisé comme identifiant défini par l'utilisateur.
 
 ```
-383|23|USDJPY
+CMD : 
+    OP_BUY           
+    OP_SELL    
+    OP_BUYLIMIT 
+    OP_SELLLIMIT
+    OP_BUYSTOP  
+    OP_SELLSTOP`
 ```
 
-#### Response values
-
-`DELETED_COUNT` number of deleted pending orders.
-
-###### Example
+#### Exemple de demande
 
 ```
-383|0|3
+236|TRADE_OPEN|USDJPY|OP_BUY|1|108.848|0|0|0|message de commentaire affiché ici|123|0
 ```
 
-### [MSG\_RATES [31]](#request)
+#### Paramètres de la réponse
 
-Get current rates for requested symbol.
+Ticket de commande `TICKET` reçu du serveur de commerce.
 
-#### Request values
-
-`SYMBOL` (string)
-
-###### Example
+#### Exemple de réponse
 
 ```
-397|31|USDJPY
+236|REPLY_OK|140602286
 ```
 
-#### Response values
+------------------------------------------------------------------------------------------------------------------------------------------
+### ORDER_MODIFY
 
-`BID` current bid price.  
-`ASK` current ask price.  
-`SYMBOL` the symbol.
+Modifier un ordre, ouvert ou en attente.
 
-###### Example
+#### Paramètres de la demande
 
-```
-397|0|108.926000|108.947000|USDJPY
-```
+`TICKET`                Int                                Billet de la commande.
+`PRICE`                  Double                        Valeur littérale ou modificateur (# modificateurs de prix) pour le prix de la commande.
+`STOPLOSS`            Double | Chaîne          Valeur littérale ou modificateur (# prix-modificateurs) pour le niveau de stop loss.
+`TAKEPROFIT`        Double | Chaîne          Valeur littérale ou modificateur (# prix-modificateurs) pour le niveau de take profit.
+`EXPIRATION`        Datetime                     Délai d'expiration de la commande en attente
 
-### [REQUEST\_ACCOUNT [41]](#request)
-
-Get account info.
-
-#### Request values
-
-\<none\>
-
-###### Example
+#### Exemple de demande
 
 ```
-415|41
+312|TRADE_MODIFY|140602286|108,252|107,525|109,102
 ```
 
-#### Response values
+#### Valeurs de réponse
 
-`CURRENCY` account currency.  
-`BALANCE` account balance in the deposit currency.  
-`PROFIT` current profit of an account in the deposit currency.  
-`EQUITY_MARGIN` account equity in the deposit currency.  
-`MARGIN_FREE` free margin of an account in the deposit currency.  
-`MARGIN_LEVEL` account margin level in percents.  
-`MARGIN_SO_CALL` margin call level.  
-`MARGIN_SO_SO` margin stop out level.
+Ticket de commande `TICKET` reçu du serveur de commerce.
 
-###### Example
+#### Exemple de réponse
 
 ```
-415|0|USD|10227.43|-129.46|10097.97|4000.00|6097.97|252.45|50.00|20.00
+312|REPLY_OK|140602286
 ```
 
-### [REQUEST\_ORDERS [51]](#request)
+------------------------------------------------------------------------------------------------------------------------------------------
+### PENDING_ORDER_DELETE
 
-Get account orders.
+Supprimer un ordre en attente.
 
-In this specific case, order values are separated by comma `,` and orders are separated by pipe `|`. So after splitting the response, you will have the orders which you would probably need to split again with `,` as a separator (e.g. `response.split('|').map(item => item.split(','))`).
+#### Paramètres de la demande
 
-#### Request values
+`TICKET`                Int                                Billet de la demande
 
-\<none\>
-
-###### Example
-
-```
-467|51
-```
-
-#### Response values
-
-`ORDERS` orders with values separated by comma `,`.  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`TICKET` order ticket.  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`OPEN_TIME` order open price.  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`TYPE` [order type](#trade-operations).  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`LOTS` order volume.  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`SYMBOL` order symbol.  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`OPEN_PRICE` order open price.
-
-###### Example
+#### Exemple de demande
 
 ```
-467|0|140617577,2018.05.31 10:40,1,0.01,EURUSD,1.17017,|140623054,2018.05.31 14:20,3,0.11,USDJPY,130.72600,
+318|TRADE_DELETE|140602286
 ```
 
-## Changelog
+#### Valeurs de réponse
 
-[CHANGELOG.md](https://github.com/BonneVoyager/MetaTrader4-Bridge/blob/master/CHANGELOG.md)
+Ticket de commande `TICKET` reçu du serveur de commerce.
 
-## License
+#### Exemple de réponse
 
-MIT
+```
+`318|REPLY_OK|140602286
+```
+
+------------------------------------------------------------------------------------------------------------------------------------------
+### PENDING_ORDER_DELETE_ALL
+
+Supprimer tout les ordres en attente.
+
+#### Paramètres de la demande
+
+`SYMBOL`              String                            Symbole pour lequel les commandes en attente doivent être supprimées.
+
+#### Exemple de demande
+
+```
+345|DELETE_ALL_PENDING|USDJPY
+```
+
+#### Valeurs de réponse
+
+`DELETE_COUNT` : Int : Nombre de commandes en attente supprimées.
+
+#### Exemple de réponse
+
+```
+345|REPLY_OK|2
+```
+
+------------------------------------------------------------------------------------------------------------------------------------------
+### MARKET_ORDER_CLOSE
+
+Cloturer un ordre.
+
+#### Paramètres de la demande
+
+`TICKET`             Int                                   Billet d'ordre de marché
+
+#### Exemple de demande
+
+```
+380|CLOSE_MARKET_ORDER|140612332
+```
+
+#### Valeurs de réponse
+
+`TICKET` : Billet de commande
+
+#### Exemple de réponse
+
+```
+380|REPLY_OK|140612332
+```
+
+------------------------------------------------------------------------------------------------------------------------------------------
+### MARKET_ORDER_CLOSE_ALL
+
+Cloturer tout les ordres.
+
+#### Paramètres de la demande
+
+`SYMBOL`              String                            Symbole pour lequel les ordres doivent être fermées.
+
+#### Exemple de demande
+
+```
+383|CLOSE_MARKER_ORDER_ALL|USDJPY
+```
+
+#### Valeurs de réponse
+
+`DELETED_COUNT` : Nombre de commandes en attentes supprimées
+
+#### Exemple de réponse
+
+```
+380|REPLY_OK|3
+```
+
+------------------------------------------------------------------------------------------------------------------------------------------
+### ORDERS
+
+Obtenir tout les ordres du compte.
+Dans ce cas spécifique, les valeurs de commande sont séparées par une virgule `,` et les commandes sont séparées par un tuyau `|`. 
+Ainsi, après avoir fractionné la réponse, vous aurez les commandes que vous auriez probablement besoin de fractionner à 
+nouveau avec `,` comme séparateur (par exemple, `response.split('|').map(item => item.split(','))`).
+
+#### Paramètres de la demande
+
+Aucun.
+
+#### Exemple de demande
+
+```
+467|ORDERS
+```
+
+#### Valeurs de réponse
+
+`ORDRE` : Les commandes avec des valeurs séparées par des virgules `,`.
+`TICKET` : Billet de commande
+`OPEN_TIME` : commande prix ouvert.
+`TYPE` : [type d'ordre] (# opérations commerciales).
+`LOTS` : Volume de commande
+`SYMBOL` : Symbole de commande
+`OPEN_PRICE` : Commande prix ouvert.
+
+#### Exemple de réponse
+
+```
+467|REPLY_OK|140617577,2018.05.31 10:40,1,0.01,EURUSD,1.17017,|140623054,2018.05.31 14:20,3,0.11,USDJPY,130.72600
+```
+
+------------------------------------------------------------------------------------------------------------------------------------------
+### RATES
+
+Obtenir le taux actuel du symbole.
+
+#### Paramètres de la demande
+
+`SYMBOL`                        String                  Symbole pour lequel les ordres doivent être fermées.
+
+#### Exemple de demande
+
+```
+397|RATES|USDJPY
+```
+
+#### Valeurs de réponse
+
+`BID` : Prix actuel de l'enchère
+`ASK` : Prix actuel demandé
+`SYMBOL` : Le symbole
+
+#### Exemple de réponse
+
+```
+397|REPLY_OK|108,926000|108,947000|USDJPY
+```
+
+------------------------------------------------------------------------------------------------------------------------------------------
+### ACCOUNT
+
+Obtenir les informations du compte.
+
+#### Paramètres de la demande
+
+Aucun 
+
+#### Exemple de demande
+
+```
+415|ACCOUNT
+```
+
+#### Valeurs de réponse
+
+`DEVISE` : devise du compte.
+`BALANCE` : solde du compte dans la devise du dépôt.
+`PROFIT` : bénéfice courant d'un compte dans la devise de dépôt.
+`EQUITY_MARGIN` : fonds propres du compte dans la devise du dépôt.
+`MARGIN_FREE` : marge libre d'un compte dans la devise de dépôt.
+`MARGIN_LEVEL` : niveau de marge du compte en pourcentage.
+`MARGIN_SO_CALL` : niveau d'appel de marge.
+`MARGIN_SO_SO` : niveau d'arrêt de marge.
+
+#### Exemple de réponse
+
+```
+415|REPLY_OK|USD|10227.43|-129.46|10097.97|4000.00|6097.97|252.45|50.00|20.00
+```
+
+------------------------------------------------------------------------------------------------------------------------------------------
+
+## Côté MT4
+
+### Ouvrir un ordre ou le mettre en attente
+
+Pour ouvrir un ordre, la fonction est [OrderSend](https://docs.mql4.com/trading/ordersend).
+
+```
+int OrderSend (
+    string     symbol,                  // symbol: Symbol for trading
+    int        cmd,                     // operation: Operation type. It can be any of the Trade operation enumeration
+    double     volume,                  // volume: Number of lots
+    double     price,                   // price: Order price
+    int        slippage,                // slippage: Maximum price slippage for buy or sell orders
+    double     stoploss,                // stop loss: Stop loss level
+    double     takeprofit,              // take profit: Take profit level
+    string     comment = NULL,          // comment: Order comment text. Last part of the comment may be changed by server
+    int        magic = 0,               // magic number: Order magic number. May be used as user defined identifier
+    datetime   expiration = 0,          // pending order expiration: Order expiration time (for pending orders only)
+    color      arrow_color = clrNONE    // color: Color of the opening arrow on the chart. If parameter is missing or has CLR_NONE value opening arrow is not drawn on the chart
+);
+
+Returned value : 
+Number of the ticket assigned to the order by the trade server or -1 if it fails. 
+To get additional error information, one has to call the GetLastError() function.
+```
+
+### Modifier un ordre, ouvert ou en attente
+
+Pour modifier un ordre, la fonction est [OrderModify](https://docs.mql4.com/trading/ordermodify).
+
+```
+bool  OrderModify(
+    int        ticket,                  // ticket: Unique number of the order ticket
+    double     price,                   // price: New open price of the pending order
+    double     stoploss,                // stop loss: New StopLoss level
+    double     takeprofit,              // take profit: New TakeProfit level
+    datetime   expiration,              // expiration: Pending order expiration time
+    color      arrow_color              // color: Arrow color for StopLoss/TakeProfit modifications in the chart. If the parameter is missing or has CLR_NONE value, the arrows will not be shown in the chart
+);
+
+Returned value : 
+If the function succeeds, it returns true, otherwise false. 
+To get the detailed error information, call the GetLastError() function.
+
+```
+
+### Supprimer un ordre en attente
+
+Pour supprimer un ordre, la fonction est [OrderDelete](https://docs.mql4.com/trading/orderdelete).
+
+```
+bool  OrderDelete(
+    int        ticket,                  // ticket: Unique number of the order ticket
+    color      arrow_color              // color: Color of the arrow on the chart. If the parameter is missing or has CLR_NONE value arrow will not be drawn on the chart
+);
+
+Returned value : 
+If the function succeeds, it returns true, otherwise false. 
+To get the detailed error information, call the GetLastError() function.
+```
+
+### Fermer un ordre ouvert
+
+Pour fermer un ordre, la fonction est [OrderClose](https://docs.mql4.com/trading/orderclose).
+
+```
+bool  OrderClose(
+    int        ticket,                  // ticket: Unique number of the order ticket
+    double     lots,                    // volume: Number of lots
+    double     price,                   // close price: Closing price
+    int        slippage,                // slippage: Value of the maximum price slippage in points
+    color      arrow_color              // color: Color of the closing arrow on the chart. If the parameter is missing or has CLR_NONE value closing arrow will not be drawn on the chart
+);
+
+Returned value :
+Returns true if successful, otherwise false. 
+To get additional error information, one has to call the GetLastError() function.
+```
