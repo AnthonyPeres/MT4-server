@@ -9,13 +9,13 @@
 #property strict
 
 /* Ping le client */
-void ping() {
+string ping() {
     Print("Ping" + TimeToStr(TimeCurrent(), TIME_SECONDS));
     return "";
 }
 
 /* Créer un nouvel ordre, direct ou en attente */
-void order_open(
+string order_open(
     int id_requete,
     string symbol,
     string cmd,
@@ -38,7 +38,7 @@ void order_open(
 }
 
 /* Modifier un ordre, ouvert ou en attente */
-void order_modify(
+string order_modify(
     int id_requete,
     int ticket,
     double price, 
@@ -50,7 +50,7 @@ void order_modify(
 }
 
 /* Supprimer un ordre en attente */
-void pending_order_delete(
+string pending_order_delete(
     int ticket
 ) {
     Print("Pending order delete");
@@ -58,7 +58,7 @@ void pending_order_delete(
 }
 
 /* Supprimer tout les ordres en attente */
-void pending_order_delete_all(
+string pending_order_delete_all(
     string symbol
 ) {
     Print("Pending order delete all");
@@ -66,7 +66,7 @@ void pending_order_delete_all(
 }
 
 /* Cloturer un ordre */
-void market_order_close(
+string market_order_close(
     int ticket
 ) {
     Print("Market order close");
@@ -74,7 +74,7 @@ void market_order_close(
 }
 
 /* Cloturer tout les ordres */
-void market_order_close_all(
+string market_order_close_all(
     string symbol
 ) {
     Print("Market order close all");
@@ -82,13 +82,13 @@ void market_order_close_all(
 }
 
 /* Obtenir tout les ordres du compte */
-void orders() {
+string orders() {
     Print("Orders");
     return "";
 }
 
 /* Obtenir le taux actuel du symbole */
-void rates(
+string rates(
     string symbol
 ) {
     Print("Rates");
@@ -96,7 +96,7 @@ void rates(
 }
 
 /* Obtenir les informations du compte */
-void account() {
+string account() {
     Print("Account");
     return "";
 }
