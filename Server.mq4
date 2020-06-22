@@ -87,9 +87,6 @@ void OnTimer()
 /* Traitement de la requête. */
 void MessageHandler(ZmqMsg &request) {
     
-   // Le message qui va être renvoyé
-   ZmqMsg reply;
-
    // Le message pour plus tard
    string message_decoupe[];
 
@@ -136,14 +133,15 @@ void ParseZmqMessage(string &message, string &retArray[]) {
 /* Interprete le message. */
 void InterpretZmqMessage(Socket &pSocket, string& valeurs_requete[]) {
 
-   Print("ZMQ: Interpreting message...");
+   Print("ZMQ: Interpreting message...");   
    string reply = "";
+
    if (valeurs_requete[1] == "PING") {
    
-      reply =ping();
+      reply = ping();
    
    } else if (valeurs_requete[1] == "ORDER_OPEN") {
-      reply =order_open(
+      reply = order_open(
          valeurs_requete[0],
          valeurs_requete[2],
          valeurs_requete[3],
@@ -157,38 +155,46 @@ void InterpretZmqMessage(Socket &pSocket, string& valeurs_requete[]) {
       );
    } else if (valeurs_requete[1] == "ORDER_MODIFY") {
    
-      reply =order_modify(0, 0.0, 0.0, 0.0);
+      reply = order_modify(
+         valeurs_requete[0], 
+         valeurs_requete[2],
+         valeurs_requete[3], 
+         valeurs_requete[4],
+         valeurs_requete[5]
+      );
    
    } else if (valeurs_requete[1] == "PENDING_ORDER_DELETE") {
    
-      reply =pending_order_delete(0);
+      reply = pending_order_delete(valeurs_requete[0], valeurs_requete[2]);
    
    } else if (valeurs_requete[1] == "PENDING_ORDER_DELETE_ALL") {
    
-      reply =pending_order_delete_all("");
+      reply = pending_order_delete_all("");
    
    } else if (valeurs_requete[1] == "MARKET_ORDER_CLOSE") {
    
-      reply =market_order_close(0);
+      reply = market_order_close(valeurs_requete[0], valeurs_requete[2]);
    
    } else if (valeurs_requete[1] == "MARKET_ORDER_CLOSE_ALL") {
    
-      reply =market_order_close_all("");
+      reply = market_order_close_all("");
    
    } else if (valeurs_requete[1] == "ORDERS") {
    
-      reply =orders();
+      reply = orders();
    
    } else if (valeurs_requete[1] == "RATES") {
    
-      reply =rates("");
+      reply = rates("");
    
    } else if (valeurs_requete[1] == "ACCOUNT") {
    
-      reply =account();
+      reply = account();
    
    } 
-   
-   ZmqMsg replyZmq(StringFormat("%s", reply));
+
+
+   // On construit la réponse
+      ZmqMsg replyZmq(StringFormat("%s", reply));
    repSocket.send(replyZmq);
 }
