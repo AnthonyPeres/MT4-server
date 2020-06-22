@@ -112,11 +112,6 @@ void MessageHandler(ZmqMsg &request) {
 
       // On l'interprete
       InterpretZmqMessage(pushSocket, message_decoupe);
-
-      // On construit la réponse
-      ZmqMsg reply(StringFormat("[SERVER] Processing: %s", data_str));
-      repSocket.send(reply);
-
    } else {
       // On a reçu aucune donnée
    }

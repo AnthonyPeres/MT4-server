@@ -15,7 +15,7 @@ string ping() {
 }
 
 /* Créer un nouvel ordre, direct ou en attente */
-string order_open(
+void order_open(
     int id_requete,
     string symbol,
     string cmd,
@@ -30,16 +30,17 @@ string order_open(
     int ticket = OrderSend(symbol, cmd, volume, price, slippage, stoploss, takeprofit, comment, magic_number);
     if (ticket < 0) {
         Print("OrderSend failed with error #", GetLastError());
-        return id_requete + "|REPLY_FAILED|" + GetLastError();
+        ZmqMsg reply(StringFormat("%s|REPLY_FAILED|%s", id_requete, GetLastError()));
+        repSocket.send(reply); 
     } else {
         Print("OrderSend placed succesfully");
-        return rep += id_requete + "|REPLY_OK|" + ticket; 
+        ZmqMsg reply(StringFormat("%s|REPLY_FAILED|%s", id_requete, ticket));
+        repSocket.send(reply); 
     }
 }
 
 /* Modifier un ordre, ouvert ou en attente */
 string order_modify(
-    int id_requete,
     int ticket,
     double price, 
     double stoploss,
