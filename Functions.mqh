@@ -9,13 +9,13 @@
 #property strict
 
 /* Ping le client */
-string ping() {
-    Print("Ping");
+void ping() {
+    Print("Ping" + TimeToStr(TimeCurrent(), TIME_SECONDS));
     return "";
 }
 
 /* Créer un nouvel ordre, direct ou en attente */
-string order_open(
+void order_open(
     int id_requete,
     string symbol,
     string cmd,
@@ -27,12 +27,19 @@ string order_open(
     string comment,
     int magic_number
 ) {
-    Print(id_requete + "--> Order Open " + symbol + " " + cmd + " " + volume + " " + price + " " + slippage + " " + stoploss + " " + takeprofit + " " + comment + " " + magic_number);
-    return "";
+    int ticket = OrderSend(symbol, cmd, volume, price, slippage, stoploss, takeprofit, comment, magic_number);
+    if (ticket < 0) {
+        Print("OrderSend failed with error #", GetLastError());
+        return id_requete + "|REPLY_FAILED|" + GetLastError();
+    } else {
+        Print("OrderSend placed succesfully");
+        return rep += id_requete + "|REPLY_OK|" + ticket; 
+    }
 }
 
 /* Modifier un ordre, ouvert ou en attente */
-string order_modify(
+void order_modify(
+    int id_requete,
     int ticket,
     double price, 
     double stoploss,
@@ -43,7 +50,7 @@ string order_modify(
 }
 
 /* Supprimer un ordre en attente */
-string pending_order_delete(
+void pending_order_delete(
     int ticket
 ) {
     Print("Pending order delete");
@@ -51,7 +58,7 @@ string pending_order_delete(
 }
 
 /* Supprimer tout les ordres en attente */
-string pending_order_delete_all(
+void pending_order_delete_all(
     string symbol
 ) {
     Print("Pending order delete all");
@@ -59,7 +66,7 @@ string pending_order_delete_all(
 }
 
 /* Cloturer un ordre */
-string market_order_close(
+void market_order_close(
     int ticket
 ) {
     Print("Market order close");
@@ -67,7 +74,7 @@ string market_order_close(
 }
 
 /* Cloturer tout les ordres */
-string market_order_close_all(
+void market_order_close_all(
     string symbol
 ) {
     Print("Market order close all");
@@ -75,13 +82,13 @@ string market_order_close_all(
 }
 
 /* Obtenir tout les ordres du compte */
-string orders() {
+void orders() {
     Print("Orders");
     return "";
 }
 
 /* Obtenir le taux actuel du symbole */
-string rates(
+void rates(
     string symbol
 ) {
     Print("Rates");
@@ -89,7 +96,7 @@ string rates(
 }
 
 /* Obtenir les informations du compte */
-string account() {
+void account() {
     Print("Account");
     return "";
 }

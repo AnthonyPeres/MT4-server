@@ -131,6 +131,7 @@ void ParseZmqMessage(string &message, string &retArray[]) {
    
    int splits = StringSplit(message, u_sep, retArray);
    
+   // A supprimer quand tout marchera
    for(int i = 0; i < splits; i++) {
       Print("(" + i + ") " + retArray[i]);
    }
