@@ -103,6 +103,13 @@ void MessageHandler(ZmqMsg &request) {
       // On analyse le message
       ParseZmqMessage(data_str, message_decoupe);
 
+      /* Par exemple, avec l'envoie d'un string : 1|PING, data_str = 1|PING,
+       * Dans ParseZmqMessage, on renvoie : 
+       * Analyse 1|PING
+       *    (0) 1
+       *    (1) PING 
+       */
+
       // On l'interprete
       InterpretZmqMessage(pushSocket, message_decoupe);
 
@@ -130,88 +137,57 @@ void ParseZmqMessage(string &message, string &retArray[]) {
 }
 
 /* Interprete le message. */
-void InterpretZmqMessage(Socket &pSocket, string& compArray[]) {
+void InterpretZmqMessage(Socket &pSocket, string& valeurs_requete[]) {
 
    Print("ZMQ: Interpreting message...");
-
-   int action = 0;
    
-   if (compArray[1] == "PING") {
-      action = 1;
-   } else if (compArray[1] == "ORDER_OPEN") {
-      action = 2;
-   } else if (compArray[1] == "ORDER_MODIFY") {
-      action = 3;
-   } else if (compArray[1] == "PENDING_ORDER_DELETE") {
-      action = 4;
-   } else if (compArray[1] == "PENDING_ORDER_DELETE_ALL") {
-      action = 5;
-   } else if (compArray[1] == "MARKET_ORDER_CLOSE") {
-      action = 6;
-   } else if (compArray[1] == "MARKET_ORDER_CLOSE_ALL") {
-      action = 7;
-   } else if (compArray[1] == "ORDERS") {
-      action = 8;
-   } else if (compArray[1] == "RATES") {
-      action = 9;
-   } else if (compArray[1] == "ACCOUNT") {
-      action = 10;
+   if (valeurs_requete[1] == "PING") {
+   
+      ping();
+   
+   } else if (valeurs_requete[1] == "ORDER_OPEN") {
+      order_open(
+         valeurs_requete[2],
+         valeurs_requete[3],
+         StrToDouble(valeurs_requete[4]),
+         StrToDouble(valeurs_requete[5]),
+         StrToInt(valeurs_requete[6]),
+         StrToDouble(valeurs_requete[7]),
+         StrToDouble(valeurs_requete[8]),
+         valeurs_requete[9],
+         StrToInt(valeurs_requete[10])
+      )
+   } else if (valeurs_requete[1] == "ORDER_MODIFY") {
+   
+      order_modify(0, 0.0, 0.0, 0.0);
+   
+   } else if (valeurs_requete[1] == "PENDING_ORDER_DELETE") {
+   
+      pending_order_delete(0);
+   
+   } else if (valeurs_requete[1] == "PENDING_ORDER_DELETE_ALL") {
+   
+      pending_order_delete_all("");
+   
+   } else if (valeurs_requete[1] == "MARKET_ORDER_CLOSE") {
+   
+      market_order_close(0);
+   
+   } else if (valeurs_requete[1] == "MARKET_ORDER_CLOSE_ALL") {
+   
+      market_order_close_all("");
+   
+   } else if (valeurs_requete[1] == "ORDERS") {
+   
+      orders();
+   
+   } else if (valeurs_requete[1] == "RATES") {
+   
+      rates("");
+   
+   } else if (valeurs_requete[1] == "ACCOUNT") {
+   
+      account();
+   
    } 
-
-   switch (action) {
-      case 1:
-         ping();
-         break;
-
-      case 2: 
-         if (compArray[3] == "OP_BUY") {
-            order_open("", "", 0.0, 0.0, 0, 0.0, 0.0, "", 0);
-         } else if (compArray[3] == "OP_SELL") {
-            order_open("", "", 0.0, 0.0, 0, 0.0, 0.0, "", 0);
-         } else if (compArray[3] == "OP_BUYLIMIT") {
-            order_open("", "", 0.0, 0.0, 0, 0.0, 0.0, "", 0);
-         } else if (compArray[3] == "OP_SELLLIMIT") {
-            order_open("", "", 0.0, 0.0, 0, 0.0, 0.0, "", 0);
-         } else if (compArray[3] == "OP_BUYSTOP") {
-            order_open("", "", 0.0, 0.0, 0, 0.0, 0.0, "", 0);
-         } else if (compArray[3] == "OP_SELLSTOP") {
-            order_open("", "", 0.0, 0.0, 0, 0.0, 0.0, "", 0);
-         } 
-         break;
-      
-      case 3:
-         order_modify(0, 0.0, 0.0, 0.0);
-         break;
-
-      case 4: 
-         pending_order_delete(0);
-         break;
-
-      case 5: 
-         pending_order_delete_all("");
-         break;
-
-      case 6: 
-         market_order_close(0);
-         break;
-
-      case 7: 
-         market_order_close_all("");
-         break;
-
-      case 8: 
-         orders();
-         break;
-
-      case 9: 
-         rates("");
-         break;
-
-      case 10: 
-         account();
-         break;
-
-      default: 
-         break;
-   }
 }
