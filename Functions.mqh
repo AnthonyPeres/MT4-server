@@ -33,13 +33,12 @@ string order_open(
         return id_requete + "|REPLY_FAILED|" + GetLastError();
     } else {
         Print("OrderSend placed succesfully");
-        return rep += id_requete + "|REPLY_OK|" + ticket; 
+        return id_requete + "|REPLY_OK|" + ticket; 
     }
 }
 
 /* Modifier un ordre, ouvert ou en attente */
 string order_modify(
-    int id_requete,
     int ticket,
     double price, 
     double stoploss,
