@@ -35,7 +35,7 @@ string order_modify(
     int ticket,
     double price, 
     double stoploss,
-    double takeprofit, 
+    double takeprofit
 ) {
     Print("Order Modify");
     return "";
