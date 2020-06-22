@@ -87,9 +87,6 @@ void OnTimer()
 /* Traitement de la requête. */
 void MessageHandler(ZmqMsg &request) {
     
-   // Le message qui va être renvoyé
-   ZmqMsg reply;
-
    // Le message pour plus tard
    string message_decoupe[];
 
@@ -112,6 +109,7 @@ void MessageHandler(ZmqMsg &request) {
 
       // On l'interprete
       InterpretZmqMessage(pushSocket, message_decoupe);
+
    } else {
       // On a reçu aucune donnée
    }
@@ -137,12 +135,14 @@ void InterpretZmqMessage(Socket &pSocket, string& valeurs_requete[]) {
 
    Print("ZMQ: Interpreting message...");
    
+   string reply = "";
+
    if (valeurs_requete[1] == "PING") {
    
-      ping();
+      reply = ping();
    
    } else if (valeurs_requete[1] == "ORDER_OPEN") {
-      order_open(
+      reply = order_open(
          valeurs_requete[0],
          valeurs_requete[2],
          valeurs_requete[3],
@@ -156,35 +156,40 @@ void InterpretZmqMessage(Socket &pSocket, string& valeurs_requete[]) {
       );
    } else if (valeurs_requete[1] == "ORDER_MODIFY") {
    
-      order_modify(0, 0.0, 0.0, 0.0);
+      reply = order_modify(0, 0.0, 0.0, 0.0);
    
    } else if (valeurs_requete[1] == "PENDING_ORDER_DELETE") {
    
-      pending_order_delete(0);
+      reply = pending_order_delete(0);
    
    } else if (valeurs_requete[1] == "PENDING_ORDER_DELETE_ALL") {
    
-      pending_order_delete_all("");
+      reply = pending_order_delete_all("");
    
    } else if (valeurs_requete[1] == "MARKET_ORDER_CLOSE") {
    
-      market_order_close(0);
+      reply = market_order_close(0);
    
    } else if (valeurs_requete[1] == "MARKET_ORDER_CLOSE_ALL") {
    
-      market_order_close_all("");
+      reply = market_order_close_all("");
    
    } else if (valeurs_requete[1] == "ORDERS") {
    
-      orders();
+      reply = orders();
    
    } else if (valeurs_requete[1] == "RATES") {
    
-      rates("");
+      reply = rates("");
    
    } else if (valeurs_requete[1] == "ACCOUNT") {
    
-      account();
+      reply = account();
    
    } 
+
+
+   // On construit la réponse
+   ZmqMsg replyZmq(StringFormat("%s", reply));
+   repSocket.send(replyZmq);
 }
