@@ -147,16 +147,17 @@ void InterpretZmqMessage(Socket &pSocket, string& valeurs_requete[]) {
    
    } else if (valeurs_requete[1] == "ORDER_OPEN") {
       order_open(
+         valeurs_requete[0],
          valeurs_requete[2],
          valeurs_requete[3],
          StrToDouble(valeurs_requete[4]),
          StrToDouble(valeurs_requete[5]),
-         StrToInt(valeurs_requete[6]),
+         StrToInteger(valeurs_requete[6]),
          StrToDouble(valeurs_requete[7]),
          StrToDouble(valeurs_requete[8]),
          valeurs_requete[9],
-         StrToInt(valeurs_requete[10])
-      )
+         StrToInteger(valeurs_requete[10])
+      );
    } else if (valeurs_requete[1] == "ORDER_MODIFY") {
    
       order_modify(0, 0.0, 0.0, 0.0);

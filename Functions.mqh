@@ -16,6 +16,7 @@ string ping() {
 
 /* Créer un nouvel ordre, direct ou en attente */
 string order_open(
+    int id_requete,
     string symbol,
     string cmd,
     double volume,
@@ -26,7 +27,7 @@ string order_open(
     string comment,
     int magic_number
 ) {
-    Print("Order Open " + symbol + " " + cmd + " " + volume + " " + price + " " + slippage + " " + stoploss + " " + takeprofit + " " + comment + " " + magic_number);
+    Print(id_requete + "--> Order Open " + symbol + " " + cmd + " " + volume + " " + price + " " + slippage + " " + stoploss + " " + takeprofit + " " + comment + " " + magic_number);
     return "";
 }
 
