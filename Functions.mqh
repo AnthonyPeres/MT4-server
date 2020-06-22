@@ -26,7 +26,7 @@ string order_open(
     string comment,
     int magic_number
 ) {
-    Print("Order Open");
+    Print("Order Open " + symbol + " " + cmd + " " + volume + " " + price + " " + slippage + " " + stoploss + " " + takeprofit + " " + comment + " " + magic_number);
     return "";
 }
 
