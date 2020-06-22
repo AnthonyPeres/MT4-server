@@ -39,21 +39,35 @@ string order_open(
 
 /* Modifier un ordre, ouvert ou en attente */
 string order_modify(
+    int id_requete,
     int ticket,
     double price, 
     double stoploss,
     double takeprofit
 ) {
-    Print("Order Modify");
-    return "";
+    bool success = OrderModify(ticket, price, stoploss, takeprofit, 0);
+    if (!success) {
+        Print("OrderModify failed with error #", GetLastError());
+        return id_requete + "|REPLY_FAILED|" + GetLastError();
+    } else {
+        Print("OrderModify succesfully");
+        return id_requete + "|REPLY_OK|" + ticket; 
+    }
 }
 
 /* Supprimer un ordre en attente */
 string pending_order_delete(
+    int id_requete,
     int ticket
 ) {
-    Print("Pending order delete");
-    return "";
+    bool success = OrderDelete(ticket);
+    if (!success) {
+        Print("PendingOrderDelete failed with error #", GetLastError());
+        return id_requete + "|REPLY_FAILED|" + GetLastError();
+    } else {
+        Print("PendingOrderDelete succesfully");
+        return id_requete + "|REPLY_OK|" + ticket; 
+    }
 }
 
 /* Supprimer tout les ordres en attente */
@@ -66,10 +80,17 @@ string pending_order_delete_all(
 
 /* Cloturer un ordre */
 string market_order_close(
+    int id_requete,
     int ticket
 ) {
-    Print("Market order close");
-    return "";
+    bool succes = OrderClose(ticket);
+    if (!success) {
+        Print("OrderClose failed with error #", GetLastError());
+        return id_requete + "|REPLY_FAILED|" + GetLastError();
+    } else {
+        Print("OrderClose succesfully");
+        return id_requete + "|REPLY_OK|" + ticket; 
+    }
 }
 
 /* Cloturer tout les ordres */
